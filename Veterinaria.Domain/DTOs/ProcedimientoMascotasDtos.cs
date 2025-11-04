@@ -17,7 +17,7 @@ namespace Veterinaria.Domain.DTOs
         [Required] public Guid MascotaId { get; init; }
         [Required] public Guid ClienteId { get; init; }
         public Guid? EmpleadoId { get; init; }
-        public TipoAtencion Tipo { get; init; } = TipoAtencion.Consulta;
+        public TipoProcedimientoMascota Tipo { get; init; } = TipoProcedimientoMascota.Consulta;
         [Required] public DateOnly Fecha { get; init; }
         [StringLength(300)] public string? Notas { get; init; }
     }
@@ -28,7 +28,7 @@ namespace Veterinaria.Domain.DTOs
         [Required] public Guid MascotaId { get; init; }
         [Required] public Guid ClienteId { get; init; }
         public Guid? EmpleadoId { get; init; }
-        public TipoAtencion Tipo { get; init; } = TipoAtencion.Consulta;
+        public TipoProcedimientoMascota Tipo { get; init; } = TipoProcedimientoMascota.Consulta;
         [Required] public DateOnly Fecha { get; init; }
         [StringLength(300)] public string? Notas { get; init; }
     }
@@ -40,7 +40,7 @@ namespace Veterinaria.Domain.DTOs
         public Guid MascotaId { get; init; }
         public Guid ClienteId { get; init; }
         public Guid? EmpleadoId { get; init; }
-        public TipoAtencion Tipo { get; init; }
+        public TipoProcedimientoMascota Tipo { get; init; }
         public DateOnly Fecha { get; init; }
         public string? Notas { get; init; }
     }

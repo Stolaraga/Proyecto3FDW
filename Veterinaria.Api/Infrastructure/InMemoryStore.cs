@@ -10,7 +10,7 @@ namespace Veterinaria.Api.Infrastructure
         public ConcurrentDictionary<Guid, Cliente> Clientes { get; } = new();
         public ConcurrentDictionary<Guid, Mascota> Mascotas { get; } = new();
         public ConcurrentDictionary<Guid, Empleado> Empleados { get; } = new();
-        public ConcurrentDictionary<Guid, Atencion> Atenciones { get; } = new();
+        public ConcurrentDictionary<Guid, ProcedimientoMascotas> Atenciones { get; } = new();
     }
 
 

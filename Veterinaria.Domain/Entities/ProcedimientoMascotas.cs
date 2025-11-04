@@ -13,7 +13,7 @@ namespace Veterinaria.Domain.Entities
     /// <summary>
     /// Acto clínico o servicio realizado a una mascota en una fecha.
     /// </summary>
-    public sealed class Atencion
+    public sealed class ProcedimientoMascotas
     {
         public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -29,7 +29,7 @@ namespace Veterinaria.Domain.Entities
         public Guid? EmpleadoId { get; set; }
 
 
-        public TipoAtencion Tipo { get; set; } = TipoAtencion.Consulta;
+        public TipoProcedimientoMascota Tipo { get; set; } = TipoProcedimientoMascota.Consulta;
 
 
         [Required]

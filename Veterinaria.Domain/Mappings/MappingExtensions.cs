@@ -126,7 +126,7 @@ namespace Veterinaria.Domain.Mappings
 
 
         // ---- Atenciones ----
-        public static AtencionReadDto ToReadDto(this Atencion a) => new()
+        public static AtencionReadDto ToReadDto(this ProcedimientoMascotas a) => new()
         {
             Id = a.Id,
             MascotaId = a.MascotaId,
@@ -138,7 +138,7 @@ namespace Veterinaria.Domain.Mappings
         };
 
 
-        public static void Apply(this Atencion a, AtencionCreateDto dto)
+        public static void Apply(this ProcedimientoMascotas a, AtencionCreateDto dto)
         {
             a.MascotaId = dto.MascotaId;
             a.ClienteId = dto.ClienteId;
@@ -149,7 +149,7 @@ namespace Veterinaria.Domain.Mappings
         }
 
 
-        public static void Apply(this Atencion a, AtencionUpdateDto dto)
+        public static void Apply(this ProcedimientoMascotas a, AtencionUpdateDto dto)
         {
             a.MascotaId = dto.MascotaId;
             a.ClienteId = dto.ClienteId;

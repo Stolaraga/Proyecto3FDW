@@ -11,12 +11,12 @@ namespace Veterinaria.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AtencionesController : ControllerBase
+    public class ProcedimientoMascotasController : ControllerBase
     {
         private readonly AtencionesRepository _repo;
         private readonly InMemoryStore _db;
 
-        public AtencionesController(AtencionesRepository repo, InMemoryStore db)
+        public ProcedimientoMascotasController(AtencionesRepository repo, InMemoryStore db)
         { _repo = repo; _db = db; }
 
         [HttpGet]
@@ -43,7 +43,7 @@ namespace Veterinaria.Api.Controllers
             if (!_db.Clientes.ContainsKey(dto.ClienteId))
                 return Problem(detail: "Cliente inexistente", statusCode: 400);
 
-            var entity = new Atencion();
+            var entity = new ProcedimientoMascotas();
             entity.Apply(dto);
             _repo.Add(entity);
             return CreatedAtAction(nameof(Get), new { id = entity.Id }, entity.ToReadDto());

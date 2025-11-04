@@ -28,25 +28,25 @@ namespace Veterinaria.Api.Infrastructure.Seed
             db.Mascotas[m1.Id] = m1; db.Mascotas[m2.Id] = m2;
 
             var a1Id = Guid.NewGuid();
-            db.Atenciones[a1Id] = new Atencion
+            db.Atenciones[a1Id] = new ProcedimientoMascotas
             {
                 Id = a1Id,
                 MascotaId = m1.Id,
                 ClienteId = c1.Id,
                 EmpleadoId = e1.Id,
-                Tipo = TipoAtencion.VacunacionAnual,
+                Tipo = TipoProcedimientoMascota.VacunacionAnual,
                 Fecha = clock.Today.AddMonths(-11),
                 Notas = "Vacuna anual múltiple"
             };
 
             var a2Id = Guid.NewGuid();
-            db.Atenciones[a2Id] = new Atencion
+            db.Atenciones[a2Id] = new ProcedimientoMascotas
             {
                 Id = a2Id,
                 MascotaId = m2.Id,
                 ClienteId = c2.Id,
                 EmpleadoId = e1.Id,
-                Tipo = TipoAtencion.Consulta,
+                Tipo = TipoProcedimientoMascota.Consulta,
                 Fecha = clock.Today.AddDays(-20),
                 Notas = "Control"
             };
