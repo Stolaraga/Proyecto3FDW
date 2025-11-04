@@ -1,0 +1,1 @@
+actulizar a powershell 7 para las pruebas
