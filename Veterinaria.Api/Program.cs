@@ -1,8 +1,14 @@
+using Dapper;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System.Text.Json.Serialization;
-using Veterinaria.Domain.Abstractions;
 using Veterinaria.Api.Infrastructure;
 using Veterinaria.Api.Infrastructure.Repositories;
 using Veterinaria.Api.Infrastructure.Seed;
+using Veterinaria.Domain.Abstractions;
+using Veterinaria.Domain.Entities;           
+using Veterinaria.Domain.Services;           
 
 
 
@@ -14,6 +20,9 @@ namespace Veterinaria.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            SqlMapper.AddTypeHandler(new DateOnlyHandler());
+
+
             builder.Services.AddSingleton<IClock, SystemClock>();
 
             // InMemory store y repos
@@ -22,6 +31,13 @@ namespace Veterinaria.Api
             builder.Services.AddSingleton<MascotasRepository>();
             builder.Services.AddSingleton<EmpleadosRepository>();
             builder.Services.AddSingleton<AtencionesRepository>();
+
+            //builder.Services.AddSingleton<IConnectionFactory, DapperConnectionFactory>();
+            //builder.Services.AddScoped<IRepository<Cliente>, ClienteRepository>();
+            builder.Services.AddScoped<IClienteService, ClienteService>();
+
+
+
 
             builder.Services.AddControllers()
                 .AddJsonOptions(o =>
