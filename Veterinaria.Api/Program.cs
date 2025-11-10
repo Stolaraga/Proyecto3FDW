@@ -31,9 +31,12 @@ namespace Veterinaria.Api
             builder.Services.AddSingleton<MascotasRepository>();
             builder.Services.AddSingleton<EmpleadosRepository>();
             builder.Services.AddSingleton<AtencionesRepository>();
+            builder.Services.AddScoped<ICrudRepository<Cliente>, ClientesRepository>();
+            builder.Services.AddScoped<IClienteService, ClienteService>();
+
+
 
             //builder.Services.AddSingleton<IConnectionFactory, DapperConnectionFactory>();
-            //builder.Services.AddScoped<IRepository<Cliente>, ClienteRepository>();
             //builder.Services.AddScoped<IClienteService, ClienteService>();
 
 
