@@ -22,7 +22,7 @@ namespace Veterinaria.Api.Controllers
         public ActionResult<IEnumerable<MascotaReadDto>> GetAll([FromQuery] Guid? clienteId)
         {
             var list = _repo.GetAll();
-            if (clienteId is not null) list = list.Where(m => m.ClienteId == clienteId);
+            if (clienteId is not null) list = (List<Mascota>)list.Where(m => m.ClienteId == clienteId);
             return Ok(list.Select(m => m.ToReadDto()));
         }
 

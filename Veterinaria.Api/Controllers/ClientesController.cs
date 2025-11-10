@@ -21,7 +21,7 @@ namespace Veterinaria.Api.Controllers
         {
             var list = _repo.GetAll();
             if (!string.IsNullOrWhiteSpace(q))
-                list = list.Where(c =>
+                list = (List<Cliente>)list.Where(c =>
                     ($"{c.Nombre} {c.Apellidos}")
                     .Contains(q, StringComparison.OrdinalIgnoreCase)
                     || c.Cedula.Contains(q));

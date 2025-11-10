@@ -35,7 +35,7 @@ namespace Veterinaria.Api.Controllers
 
             foreach (var m in _db.Mascotas.Values)
             {
-                var ultima = VacunacionHelper.UltimaVacunacionAnual(m.Id, _db.Atenciones.Values);
+                var ultima = VacunacionHelper.UltimaVacunacionAnual(m.Id, _db.ProcedimientoMascotas.Values);
                 if (ultima is null) continue;
 
                 var proxima = ultima.Value.AddYears(1);

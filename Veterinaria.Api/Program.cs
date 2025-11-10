@@ -34,7 +34,7 @@ namespace Veterinaria.Api
 
             //builder.Services.AddSingleton<IConnectionFactory, DapperConnectionFactory>();
             //builder.Services.AddScoped<IRepository<Cliente>, ClienteRepository>();
-            builder.Services.AddScoped<IClienteService, ClienteService>();
+            //builder.Services.AddScoped<IClienteService, ClienteService>();
 
 
 
