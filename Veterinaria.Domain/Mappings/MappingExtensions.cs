@@ -1,16 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Veterinaria.Domain.DTOs;
 using Veterinaria.Domain.Entities;
 
-
-
 namespace Veterinaria.Domain.Mappings
 {
-
     public static class MappingExtensions
     {
         // ---- Clientes ----
@@ -38,7 +32,6 @@ namespace Veterinaria.Domain.Mappings
             c.Direccion = dto.Direccion;
         }
 
-
         public static void Apply(this Cliente c, ClienteUpdateDto dto)
         {
             c.Cedula = dto.Cedula;
@@ -52,7 +45,6 @@ namespace Veterinaria.Domain.Mappings
         }
 
         // ---- Mascotas ----
-
         public static MascotaReadDto ToReadDto(this Mascota m) => new()
         {
             Id = m.Id,
@@ -86,9 +78,6 @@ namespace Veterinaria.Domain.Mappings
             m.Activo = dto.Activo;
         }
 
-
-
-
         // ---- Empleados ----
         public static EmpleadoReadDto ToReadDto(this Empleado e) => new()
         {
@@ -101,7 +90,6 @@ namespace Veterinaria.Domain.Mappings
             Activo = e.Activo
         };
 
-
         public static void Apply(this Empleado e, EmpleadoCreateDto dto)
         {
             e.Nombre = dto.Nombre;
@@ -111,7 +99,6 @@ namespace Veterinaria.Domain.Mappings
             e.Rol = dto.Rol;
             e.FechaIngreso = dto.FechaIngreso ?? e.FechaIngreso;
         }
-
 
         public static void Apply(this Empleado e, EmpleadoUpdateDto dto)
         {
@@ -124,53 +111,38 @@ namespace Veterinaria.Domain.Mappings
             e.Activo = dto.Activo;
         }
 
-
-        // ---- Atenciones ----
-        public static AtencionReadDto ToReadDto(this ProcedimientoMascotas a) => new()
+        
+        public static ProcedimientoMascotaReadDto ToReadDto(this ProcedimientoMascotas a) => new()
         {
             Id = a.Id,
             MascotaId = a.MascotaId,
             ClienteId = a.ClienteId,
             EmpleadoId = a.EmpleadoId,
             Tipo = a.Tipo,
-            Fecha = a.Fecha,
+            // Entity suele tener DateOnly; el ReadDto usa DateTime:
+            Fecha = new DateTime(a.Fecha.Year, a.Fecha.Month, a.Fecha.Day),
             Notas = a.Notas
         };
 
-
-        public static void Apply(this ProcedimientoMascotas a, AtencionCreateDto dto)
+        public static void Apply(this ProcedimientoMascotas a, ProcedimientoMascotaCreateDto dto)
         {
             a.MascotaId = dto.MascotaId;
-            a.ClienteId = dto.ClienteId;
-            a.EmpleadoId = dto.EmpleadoId;
+            a.ClienteId = dto.ClienteId ?? a.ClienteId;
+            a.EmpleadoId = dto.EmpleadoId ?? a.EmpleadoId;
             a.Tipo = dto.Tipo;
-            a.Fecha = dto.Fecha;
+            // CreateDto usa DateTime; entity suele ser DateOnly:
+            a.Fecha = DateOnly.FromDateTime(dto.Fecha);
             a.Notas = dto.Notas;
         }
 
-
-        public static void Apply(this ProcedimientoMascotas a, AtencionUpdateDto dto)
+        public static void Apply(this ProcedimientoMascotas a, ProcedimientoMascotaUpdateDto dto)
         {
             a.MascotaId = dto.MascotaId;
-            a.ClienteId = dto.ClienteId;
-            a.EmpleadoId = dto.EmpleadoId;
+            a.ClienteId = dto.ClienteId ?? a.ClienteId;
+            a.EmpleadoId = dto.EmpleadoId ?? a.EmpleadoId;
             a.Tipo = dto.Tipo;
-            a.Fecha = dto.Fecha;
+            a.Fecha = DateOnly.FromDateTime(dto.Fecha);
             a.Notas = dto.Notas;
         }
-
-
-
-
-
     }
-
-
-
-
-
-
-
-
-
-    }
+}

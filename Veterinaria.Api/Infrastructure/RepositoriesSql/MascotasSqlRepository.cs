@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
-using Veterinaria.Api.Infrastructure;     
+using Veterinaria.Api.Infrastructure;
 using Veterinaria.Domain.DTOs;
 using Veterinaria.Domain.Enums;
 
@@ -77,19 +77,22 @@ WHERE m.Id = @Id;";
             return await cn.QueryFirstOrDefaultAsync<MascotaReadDto>(sql, new { Id = id });
         }
 
-
-
         public async Task<MascotaReadDto> AddAsync(MascotaCreateDto dto)
         {
-
             const string insertSql = @"
 DECLARE @ClienteIdInt int = (SELECT ClienteId FROM dbo.Clientes WHERE Id = @ClienteGuid);
 IF @ClienteIdInt IS NULL THROW 50001, 'Cliente GUID no existe', 1;
 
+/* ↑↑↑ RESOLUCIÓN/UPSERT DE ESPECIE ↑↑↑ */
 DECLARE @EspecieNombre nvarchar(80) = @EspecieStr;
 DECLARE @EspecieId int = (SELECT EspecieId FROM dbo.Especies WHERE Nombre = @EspecieNombre);
-IF @EspecieId IS NULL THROW 50002, 'Especie no existe en tabla Especies', 1;
+IF @EspecieId IS NULL
+BEGIN
+    INSERT INTO dbo.Especies(Nombre) VALUES (@EspecieNombre);
+    SET @EspecieId = SCOPE_IDENTITY();
+END
 
+/* ↑↑↑ RESOLUCIÓN/UPSERT DE RAZA (opcional) ↑↑↑ */
 DECLARE @RazaId int = NULL;
 IF @RazaNombre IS NOT NULL
 BEGIN
@@ -105,9 +108,6 @@ END
 INSERT INTO dbo.Mascotas (ClienteId, EspecieId, RazaId, Nombre, Sexo, FechaNac, Color, PesoKg, Activo)
 OUTPUT inserted.Id
 VALUES (@ClienteIdInt, @EspecieId, @RazaId, @Nombre, @SexoChar, @FechaNac, NULL, NULL, 1);";
-
-
-
 
             const string selectSql = @"
 SELECT 
@@ -137,7 +137,7 @@ WHERE m.Id = @Id;";
             var newId = await cn.ExecuteScalarAsync<Guid>(insertSql, new
             {
                 ClienteGuid = dto.ClienteId,
-                EspecieStr = dto.Especie.ToString(), // "Perro", "Gato", …
+                EspecieStr = dto.Especie.ToString(), // "Perro", "Gato", "Ave", ...
                 RazaNombre = dto.Raza,
                 Nombre = dto.Nombre,
                 SexoChar = sexoChar,
@@ -148,19 +148,22 @@ WHERE m.Id = @Id;";
             return creado;
         }
 
-
-
-
         public async Task<bool> UpdateAsync(Guid id, MascotaUpdateDto dto)
         {
             const string sql = @"
 DECLARE @ClienteIdInt int = (SELECT ClienteId FROM dbo.Clientes WHERE Id = @ClienteGuid);
 IF @ClienteIdInt IS NULL THROW 50001, 'Cliente GUID no existe', 1;
 
+/* ↑↑↑ RESOLUCIÓN/UPSERT DE ESPECIE ↑↑↑ */
 DECLARE @EspecieNombre nvarchar(80) = @EspecieStr;
 DECLARE @EspecieId int = (SELECT EspecieId FROM dbo.Especies WHERE Nombre = @EspecieNombre);
-IF @EspecieId IS NULL THROW 50002, 'Especie no existe en tabla Especies', 1;
+IF @EspecieId IS NULL
+BEGIN
+    INSERT INTO dbo.Especies(Nombre) VALUES (@EspecieNombre);
+    SET @EspecieId = SCOPE_IDENTITY();
+END
 
+/* ↑↑↑ RESOLUCIÓN/UPSERT DE RAZA (opcional) ↑↑↑ */
 DECLARE @RazaId int = NULL;
 IF @RazaNombre IS NOT NULL
 BEGIN
@@ -204,11 +207,6 @@ WHERE Id = @Id;";
             });
             return rows > 0;
         }
-
-
-
-
-
 
         public async Task<bool> DeleteAsync(Guid id)
         {

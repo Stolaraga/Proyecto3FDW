@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Veterinaria.Domain.Entities;
 
-
-
 namespace Veterinaria.Api.Infrastructure.Repositories
 {
 
@@ -15,7 +13,6 @@ namespace Veterinaria.Api.Infrastructure.Repositories
 
         public ProcedimientoMascotas Add(ProcedimientoMascotas e)
         {
-            
             _db.ProcedimientoMascotas[e.Id] = e;
             return e;
         }
@@ -35,7 +32,4 @@ namespace Veterinaria.Api.Infrastructure.Repositories
         public List<ProcedimientoMascotas> GetAll()
             => _db.ProcedimientoMascotas.Values.ToList();
     }
-
-
-
 }

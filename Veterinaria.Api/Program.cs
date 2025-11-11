@@ -46,9 +46,14 @@ namespace Veterinaria.Api
             builder.Services.AddScoped<IClienteService, ClienteService>();
             builder.Services.AddScoped<IMascotaService, MascotaService>();
 
+            builder.Services.AddScoped<ICitasSqlRepository, CitasSqlRepository>();
+            builder.Services.AddScoped<ICitaService, CitaService>();
+            
+            builder.Services.AddScoped<IProcedimientosMascotasSqlRepository, ProcedimientosMascotasSqlRepository>();
+            builder.Services.AddScoped<IProcedimientoMascotaService, ProcedimientoMascotaService>();
 
 
-            //builder.Services.AddSingleton<IConnectionFactory, DapperConnectionFactory>();
+
 
 
 

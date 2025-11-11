@@ -1,74 +1,92 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Veterinaria.Api.Infrastructure;
-using Veterinaria.Api.Infrastructure.Repositories;
-using Veterinaria.Domain.Entities;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Veterinaria.Api.Infrastructure.RepositoriesSql;
 using Veterinaria.Domain.DTOs;
-using Veterinaria.Domain.Mappings;
 
 namespace Veterinaria.Api.Controllers
-
-
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class ProcedimientoMascotasController : ControllerBase
+    public sealed class ProcedimientoMascotasController : ControllerBase
     {
-        private readonly AtencionesRepository _repo;
-        private readonly InMemoryStore _db;
+        private readonly IMascotasSqlRepository _mascRepo;
+        private readonly IProcedimientosMascotasSqlRepository _procRepo;
 
-        public ProcedimientoMascotasController(AtencionesRepository repo, InMemoryStore db)
-        { _repo = repo; _db = db; }
+        public ProcedimientoMascotasController(
+            IMascotasSqlRepository mascRepo,
+            IProcedimientosMascotasSqlRepository procRepo)
+        {
+            _mascRepo = mascRepo;
+            _procRepo = procRepo;
+        }
 
         [HttpGet]
-        public ActionResult<IEnumerable<AtencionReadDto>> GetAll([FromQuery] Guid? mascotaId)
+        public async Task<ActionResult<IEnumerable<ProcedimientoMascotaReadDto>>> GetAll([FromQuery] Guid? mascotaId)
         {
-            var list = _repo.GetAll();
-            if (mascotaId is not null) list = (List<ProcedimientoMascotas>)list.Where(a => a.MascotaId == mascotaId);
-            return Ok(list.Select(a => a.ToReadDto()));
+            var list = await _procRepo.GetAllAsync(mascotaId);
+            return Ok(list);
         }
 
         [HttpGet("{id}")]
-        public ActionResult<AtencionReadDto> Get(Guid id)
+        public async Task<ActionResult<ProcedimientoMascotaReadDto>> Get(Guid id)
         {
-            var a = _repo.Get(id);
-            return a is null ? NotFound() : Ok(a.ToReadDto());
+            var dto = await _procRepo.GetAsync(id);
+            return dto is null ? NotFound() : Ok(dto);
         }
 
         [HttpPost]
-        public ActionResult<AtencionReadDto> Post([FromBody] AtencionCreateDto dto)
+        public async Task<ActionResult<ProcedimientoMascotaReadDto>> Post([FromBody] ProcedimientoMascotaCreateDto dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
-            if (!_db.Mascotas.ContainsKey(dto.MascotaId))
-                return Problem(detail: "Mascota inexistente", statusCode: 400);
-            if (!_db.Clientes.ContainsKey(dto.ClienteId))
-                return Problem(detail: "Cliente inexistente", statusCode: 400);
 
-            var entity = new ProcedimientoMascotas();
-            entity.Apply(dto);
-            _repo.Add(entity);
-            return CreatedAtAction(nameof(Get), new { id = entity.Id }, entity.ToReadDto());
+            var mascota = await _mascRepo.GetAsync(dto.MascotaId);
+            if (mascota is null)
+                return Problem(detail: $"Mascota inexistente: {dto.MascotaId}", statusCode: 400);
+
+            if (dto.ClienteId.HasValue && dto.ClienteId.Value != mascota.ClienteId)
+                return Problem(detail: "La mascota no pertenece al cliente indicado.", statusCode: 400);
+
+            try
+            {
+                var creado = await _procRepo.AddAsync(dto);
+                return CreatedAtAction(nameof(Get), new { id = creado.Id }, creado);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Problem(detail: ex.Message, statusCode: 400);
+            }
         }
 
         [HttpPut("{id}")]
-        public IActionResult Put(Guid id, [FromBody] AtencionUpdateDto dto)
+        public async Task<IActionResult> Put(Guid id, [FromBody] ProcedimientoMascotaUpdateDto dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
-            if (!_db.Mascotas.ContainsKey(dto.MascotaId))
-                return Problem(detail: "Mascota inexistente", statusCode: 400);
-            if (!_db.Clientes.ContainsKey(dto.ClienteId))
-                return Problem(detail: "Cliente inexistente", statusCode: 400);
 
-            var existing = _repo.Get(id);
-            if (existing is null) return NotFound();
+            var mascota = await _mascRepo.GetAsync(dto.MascotaId);
+            if (mascota is null)
+                return Problem(detail: $"Mascota inexistente: {dto.MascotaId}", statusCode: 400);
 
-            existing.Apply(dto with { Id = id });
-            return _repo.Update(existing) ? NoContent() : NotFound();
+            if (dto.ClienteId.HasValue && dto.ClienteId.Value != mascota.ClienteId)
+                return Problem(detail: "La mascota no pertenece al cliente indicado.", statusCode: 400);
+
+            try
+            {
+                var ok = await _procRepo.UpdateAsync(id, dto);
+                return ok ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Problem(detail: ex.Message, statusCode: 400);
+            }
         }
 
         [HttpDelete("{id}")]
-        public IActionResult Delete(Guid id)
-            => _repo.Delete(id) ? NoContent() : NotFound();
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var ok = await _procRepo.DeleteAsync(id);
+            return ok ? NoContent() : NotFound();
+        }
     }
-
-
 }

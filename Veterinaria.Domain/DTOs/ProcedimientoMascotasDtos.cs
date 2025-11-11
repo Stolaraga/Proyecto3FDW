@@ -1,49 +1,40 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.ComponentModel.DataAnnotations;
 using Veterinaria.Domain.Enums;
 
-
-
 namespace Veterinaria.Domain.DTOs
 {
-
-
-    public sealed record AtencionCreateDto : BaseCreateDto
+    // ===== Crear procedimiento aplicado a una mascota (GUID públicos) =====
+    public sealed record ProcedimientoMascotaCreateDto : BaseCreateDto
     {
-        [Required] public Guid MascotaId { get; init; }
-        [Required] public Guid ClienteId { get; init; }
-        public Guid? EmpleadoId { get; init; }
-        public TipoProcedimientoMascota Tipo { get; init; } = TipoProcedimientoMascota.Consulta;
-        [Required] public DateOnly Fecha { get; init; }
-        [StringLength(300)] public string? Notas { get; init; }
+        [Required] public Guid MascotaId { get; init; }                 // GUID de dbo.Mascotas.Id
+        public Guid? ClienteId { get; init; }                           // (opcional) GUID de dbo.Clientes.Id para validar pertenencia
+        public Guid? EmpleadoId { get; init; }                          // (opcional) GUID de dbo.Empleados.Id
+        [Required] public TipoProcedimientoMascota Tipo { get; init; } = TipoProcedimientoMascota.Consulta;
+        [Required] public DateTime Fecha { get; init; }                 // Fecha/hora del procedimiento
+        [StringLength(1000)] public string? Notas { get; init; }
     }
 
-
-    public sealed record AtencionUpdateDto : BaseUpdateDto
+    // ===== Actualizar procedimiento =====
+    public sealed record ProcedimientoMascotaUpdateDto : BaseUpdateDto
     {
         [Required] public Guid MascotaId { get; init; }
-        [Required] public Guid ClienteId { get; init; }
+        public Guid? ClienteId { get; init; }
         public Guid? EmpleadoId { get; init; }
-        public TipoProcedimientoMascota Tipo { get; init; } = TipoProcedimientoMascota.Consulta;
-        [Required] public DateOnly Fecha { get; init; }
-        [StringLength(300)] public string? Notas { get; init; }
+        [Required] public TipoProcedimientoMascota Tipo { get; init; } = TipoProcedimientoMascota.Consulta;
+        [Required] public DateTime Fecha { get; init; }
+        [StringLength(1000)] public string? Notas { get; init; }
     }
 
-
-    public sealed record AtencionReadDto
+    // ===== Lectura / respuesta de la API =====
+    public sealed record ProcedimientoMascotaReadDto
     {
-        public Guid Id { get; init; }
-        public Guid MascotaId { get; init; }
-        public Guid ClienteId { get; init; }
-        public Guid? EmpleadoId { get; init; }
+        public Guid Id { get; init; }                                   // GUID público del procedimiento (dbo.ProcedimientoMascotas.Id)
+        public Guid MascotaId { get; init; }                            // GUID de Mascotas.Id
+        public Guid? ClienteId { get; init; }                           // GUID de Clientes.Id (dueño de la mascota)
+        public Guid? EmpleadoId { get; init; }                          // GUID de Empleados.Id (si aplica)
         public TipoProcedimientoMascota Tipo { get; init; }
-        public DateOnly Fecha { get; init; }
+        public DateTime Fecha { get; init; }
         public string? Notas { get; init; }
     }
-
-
 }
