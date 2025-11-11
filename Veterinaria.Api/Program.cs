@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using System.Text.Json.Serialization;
 using Veterinaria.Api.Infrastructure;
 using Veterinaria.Api.Infrastructure.Repositories;
+using Veterinaria.Api.Infrastructure.RepositoriesSql;
 using Veterinaria.Api.Infrastructure.Seed;
 using Veterinaria.Domain.Abstractions;
 using Veterinaria.Domain.Entities;           
@@ -31,13 +32,21 @@ namespace Veterinaria.Api
             builder.Services.AddSingleton<MascotasRepository>();
             builder.Services.AddSingleton<EmpleadosRepository>();
             builder.Services.AddSingleton<AtencionesRepository>();
+            
+            builder.Services.AddSingleton<IConnectionFactory, DapperConnectionFactory>();
+
+
             builder.Services.AddScoped<ICrudRepository<Cliente>, ClientesRepository>();
+            
+
+
+            builder.Services.AddScoped<IClientesSqlRepository, ClientesSqlRepository>();
             builder.Services.AddScoped<IClienteService, ClienteService>();
 
 
 
             //builder.Services.AddSingleton<IConnectionFactory, DapperConnectionFactory>();
-            //builder.Services.AddScoped<IClienteService, ClienteService>();
+
 
 
 
@@ -60,7 +69,7 @@ namespace Veterinaria.Api
                 opt.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
                 {
                     Title = "Veterinaria API (Proyecto 2)",
-                    Version = "v1",
+                    Version = "v1.5 En conexion a la base de datos",
                     Description = "API REST en memoria para Clientes, Mascotas, Empleados, Atenciones y Reportes."
                 });
             });
