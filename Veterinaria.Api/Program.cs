@@ -9,7 +9,8 @@ using Veterinaria.Api.Infrastructure.RepositoriesSql;
 using Veterinaria.Api.Infrastructure.Seed;
 using Veterinaria.Domain.Abstractions;
 using Veterinaria.Domain.Entities;           
-using Veterinaria.Domain.Services;           
+using Veterinaria.Domain.Services;
+using Veterinaria.Api.Services;
 
 
 
@@ -32,16 +33,18 @@ namespace Veterinaria.Api
             builder.Services.AddSingleton<MascotasRepository>();
             builder.Services.AddSingleton<EmpleadosRepository>();
             builder.Services.AddSingleton<AtencionesRepository>();
+
             
+
+
             builder.Services.AddSingleton<IConnectionFactory, DapperConnectionFactory>();
-
-
-            builder.Services.AddScoped<ICrudRepository<Cliente>, ClientesRepository>();
-            
-
-
+            builder.Services.AddScoped<ICrudRepository<Cliente>, ClientesRepository>();            
             builder.Services.AddScoped<IClientesSqlRepository, ClientesSqlRepository>();
+            builder.Services.AddScoped<IMascotasSqlRepository, MascotasSqlRepository>();
+            builder.Services.AddScoped<IEmpleadosSqlRepository, EmpleadosSqlRepository>();
+            builder.Services.AddScoped<IEmpleadoService, EmpleadoService>();
             builder.Services.AddScoped<IClienteService, ClienteService>();
+            builder.Services.AddScoped<IMascotaService, MascotaService>();
 
 
 

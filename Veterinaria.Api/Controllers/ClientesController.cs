@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Veterinaria.Api.Infrastructure.Repositories;
-using Veterinaria.Domain.Entities;
 using Veterinaria.Domain.DTOs;
+using Veterinaria.Domain.Entities;
 using Veterinaria.Domain.Mappings;
+using Veterinaria.Domain.Services;
 
 
 namespace Veterinaria.Api.Controllers
@@ -11,53 +12,55 @@ namespace Veterinaria.Api.Controllers
 
     [ApiController]
     [Route("api/[controller]")]
-    public class ClientesController : ControllerBase
+    public sealed class ClientesController : ControllerBase
     {
-        private readonly ClientesRepository _repo;
-        public ClientesController(ClientesRepository repo) => _repo = repo;
+        private readonly IClienteService _svc;
+        public ClientesController(IClienteService svc) => _svc = svc;
 
+        // GET: /api/clientes
         [HttpGet]
-        public ActionResult<IEnumerable<ClienteReadDto>> GetAll([FromQuery] string? q)
+        public async Task<ActionResult<IReadOnlyList<ClienteReadDto>>> Get()
         {
-            var list = _repo.GetAll();
-            if (!string.IsNullOrWhiteSpace(q))
-                list = (List<Cliente>)list.Where(c =>
-                    ($"{c.Nombre} {c.Apellidos}")
-                    .Contains(q, StringComparison.OrdinalIgnoreCase)
-                    || c.Cedula.Contains(q));
-            return Ok(list.Select(c => c.ToReadDto()));
+            var list = await _svc.ListarAsync();
+            return Ok(list);
         }
 
-        [HttpGet("{id}")]
-        public ActionResult<ClienteReadDto> Get(Guid id)
+        // GET: /api/clientes/{id}
+        [HttpGet("{id:guid}")]
+        public async Task<ActionResult<ClienteReadDto?>> GetById(Guid id)
         {
-            var c = _repo.Get(id);
-            return c is null ? NotFound() : Ok(c.ToReadDto());
+            var dto = await _svc.ObtenerAsync(new ClienteReadDto { Id = id });
+            return dto is null ? NotFound() : Ok(dto);
         }
 
+        // POST: /api/clientes
         [HttpPost]
-        public ActionResult<ClienteReadDto> Post([FromBody] ClienteCreateDto dto)
+        public async Task<ActionResult<ClienteReadDto>> Post([FromBody] ClienteCreateDto dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
-            var entity = new Cliente();
-            entity.Apply(dto);
-            _repo.Add(entity);
-            return CreatedAtAction(nameof(Get), new { id = entity.Id }, entity.ToReadDto());
+
+            var creado = await _svc.CrearAsync(dto);
+            return CreatedAtAction(nameof(GetById), new { id = creado.Id }, creado);
         }
 
-        [HttpPut("{id}")]
-        public IActionResult Put(Guid id, [FromBody] ClienteUpdateDto dto)
+        // PUT: /api/clientes/{id}
+        [HttpPut("{id:guid}")]
+        public async Task<IActionResult> Put(Guid id, [FromBody] ClienteUpdateDto dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
-            var existing = _repo.Get(id);
-            if (existing is null) return NotFound();
-            existing.Apply(dto with { Id = id });
-            return _repo.Update(existing) ? NoContent() : NotFound();
+
+            dto = dto with { Id = id };
+            var ok = await _svc.ActualizarAsync(dto);
+            return ok ? NoContent() : NotFound();
         }
 
-        [HttpDelete("{id}")]
-        public IActionResult Delete(Guid id)
-            => _repo.Delete(id) ? NoContent() : NotFound();
+        // DELETE: /api/clientes/{id}
+        [HttpDelete("{id:guid}")]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var ok = await _svc.EliminarAsync(new ClienteReadDto { Id = id });
+            return ok ? NoContent() : NotFound();
+        }
     }
 
 
