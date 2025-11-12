@@ -51,6 +51,8 @@ namespace Veterinaria.Api
             
             builder.Services.AddScoped<IProcedimientosMascotasSqlRepository, ProcedimientosMascotasSqlRepository>();
             builder.Services.AddScoped<IProcedimientoMascotaService, ProcedimientoMascotaService>();
+            builder.Services.AddScoped<ICatalogoProcedimientosSqlRepository, CatalogoProcedimientosSqlRepository>();
+
 
 
 

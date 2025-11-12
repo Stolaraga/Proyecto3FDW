@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Mime;
 using System.Threading.Tasks;
+using Veterinaria.Api.Infrastructure.RepositoriesSql;
 using Veterinaria.Domain.DTOs;
 using Veterinaria.Domain.Services;
 
@@ -14,9 +15,15 @@ namespace Veterinaria.Api.Controllers
     public sealed class ProcedimientoMascotasController : ControllerBase
     {
         private readonly IProcedimientoMascotaService _service;
+        private readonly ICatalogoProcedimientosSqlRepository _catalogoRepo;
 
-        public ProcedimientoMascotasController(IProcedimientoMascotaService service)
-            => _service = service ?? throw new ArgumentNullException(nameof(service));
+        public ProcedimientoMascotasController(
+            IProcedimientoMascotaService service,
+            ICatalogoProcedimientosSqlRepository catalogoRepo)
+        {
+            _service = service ?? throw new ArgumentNullException(nameof(service));
+            _catalogoRepo = catalogoRepo ?? throw new ArgumentNullException(nameof(catalogoRepo));
+        }
 
         /// <summary>
         /// Lista procedimientos; puede filtrar por MascotaId.
@@ -44,17 +51,42 @@ namespace Veterinaria.Api.Controllers
 
         /// <summary>
         /// Crea un procedimiento.
+        /// - Si se envía ?codigo=CONSULTA y el body NO trae 'precio', toma el precio del catálogo.
+        /// - Si el body trae 'precio', se respeta el valor del body.
         /// </summary>
         [HttpPost]
         [ProducesResponseType(typeof(ProcedimientoMascotaReadDto), 201)]
         [ProducesResponseType(400)]
-        public async Task<ActionResult<ProcedimientoMascotaReadDto>> Create([FromBody] ProcedimientoMascotaCreateDto dto)
+        public async Task<ActionResult<ProcedimientoMascotaReadDto>> Create(
+            [FromBody] ProcedimientoMascotaCreateDto dto,
+            [FromQuery] string? codigo = null)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
             try
             {
-                var created = await _service.CrearAsync(dto);
+                var payload = dto;
+
+                // Si el front NO mandó precio pero sí mandó código, usamos el precio del catálogo
+                if (payload.Precio is null && !string.IsNullOrWhiteSpace(codigo))
+                {
+                    var cat = await _catalogoRepo.GetByCodigoAsync(codigo);
+                    if (cat is null)
+                        return BadRequest(new { message = $"Código de catálogo inexistente: '{codigo}'." });
+
+                    payload = new ProcedimientoMascotaCreateDto
+                    {
+                        MascotaId = dto.MascotaId,
+                        ClienteId = dto.ClienteId,
+                        EmpleadoId = dto.EmpleadoId,
+                        Tipo = dto.Tipo,
+                        Fecha = dto.Fecha,
+                        Notas = dto.Notas,
+                        Precio = cat.Precio
+                    };
+                }
+
+                var created = await _service.CrearAsync(payload);
                 return CreatedAtRoute(nameof(GetById), new { id = created.Id }, created);
             }
             catch (InvalidOperationException ex)
