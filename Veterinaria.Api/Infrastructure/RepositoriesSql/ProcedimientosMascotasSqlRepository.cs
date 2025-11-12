@@ -34,11 +34,11 @@ namespace Veterinaria.Api.Infrastructure.RepositoriesSql
             public string? NombreMascota { get; init; }
             public decimal IvaPorcentaje { get; init; }
             public string Estado { get; init; } = "Agendado";
+            public decimal Precio { get; init; }
         }
 
         private static ProcedimientoMascotaReadDto Map(ProcRow r)
         {
-            // Convertimos el string de BD al enum (acepta nombres como "Consulta", "Cirugia", etc.)
             if (!Enum.TryParse<TipoProcedimientoMascota>(r.Tipo, ignoreCase: true, out var tipoEnum))
                 tipoEnum = TipoProcedimientoMascota.Consulta;
 
@@ -49,12 +49,12 @@ namespace Veterinaria.Api.Infrastructure.RepositoriesSql
                 ClienteId = r.ClienteId,
                 EmpleadoId = r.EmpleadoId,
                 Tipo = tipoEnum,
-                Fecha = r.Fecha,          // preserva hora
+                Fecha = r.Fecha,
                 Notas = r.Notas,
-                // Nuevas columnas de la tabla
                 NombreMascota = r.NombreMascota,
                 IvaPorcentaje = r.IvaPorcentaje,
-                Estado = r.Estado
+                Estado = r.Estado,
+                Precio = r.Precio
             };
         }
 
@@ -70,7 +70,8 @@ SELECT p.Id,
        p.Notas,
        p.NombreMascota,
        p.IvaPorcentaje,
-       p.Estado
+       p.Estado,
+       p.Precio
 FROM dbo.ProcedimientoMascotas p
 WHERE p.Id = @Id;";
 
@@ -91,7 +92,8 @@ SELECT p.Id,
        p.Notas,
        p.NombreMascota,
        p.IvaPorcentaje,
-       p.Estado
+       p.Estado,
+       p.Precio
 FROM dbo.ProcedimientoMascotas p
 WHERE (@MascotaGuid IS NULL OR p.MascotaId = @MascotaGuid)
 ORDER BY p.Fecha DESC, p.ProcId DESC;";
@@ -110,13 +112,15 @@ ORDER BY p.Fecha DESC, p.ProcId DESC;";
             if (dto.ClienteId is null || dto.ClienteId == Guid.Empty)
                 throw new InvalidOperationException("ClienteId es obligatorio para insertar el procedimiento.");
 
-            // Nota: dejamos que BD asigne defaults (IvaPorcentaje=13.00, Estado='Agendado').
+            // Si no envían precio, la BD tiene DEFAULT 0.00; aquí lo fijamos explícitamente.
+            var precio = dto.Precio ?? 0m;
+
             const string insertSql = @"
 INSERT INTO dbo.ProcedimientoMascotas
-    (MascotaId, ClienteId, EmpleadoId, Tipo, Fecha, Notas, NombreMascota)
+    (MascotaId, ClienteId, EmpleadoId, Tipo, Fecha, Notas, NombreMascota, Precio)
 OUTPUT inserted.Id
 VALUES
-    (@MascotaGuid, @ClienteGuid, @EmpleadoGuid, @Tipo, @Fecha, @Notas, @NombreMascota);";
+    (@MascotaGuid, @ClienteGuid, @EmpleadoGuid, @Tipo, @Fecha, @Notas, @NombreMascota, @Precio);";
 
             using var cn = _factory.Create();
             var newId = await cn.ExecuteScalarAsync<Guid>(insertSql, new
@@ -125,12 +129,12 @@ VALUES
                 ClienteGuid = dto.ClienteId,
                 EmpleadoGuid = (dto.EmpleadoId == null || dto.EmpleadoId == Guid.Empty) ? (Guid?)null : dto.EmpleadoId,
                 Tipo = dto.Tipo.ToString(),
-                Fecha = dto.Fecha,                 // preserva hora (no .Date)
+                Fecha = dto.Fecha,
                 Notas = dto.Notas,
-                NombreMascota = (string?)null      // si quieres denormalizar, puedes setearlo desde UI/servicio
+                NombreMascota = (string?)null,
+                Precio = precio
             });
 
-            // Devolvemos el registro recién creado
             var created = await GetAsync(newId);
             if (created is null)
                 throw new InvalidOperationException("No fue posible leer el procedimiento recién insertado.");
@@ -144,12 +148,13 @@ VALUES
 
             const string sql = @"
 UPDATE dbo.ProcedimientoMascotas
-   SET MascotaId  = @MascotaGuid,
-       ClienteId  = @ClienteGuid,
-       EmpleadoId = @EmpleadoGuid,
-       Tipo       = @Tipo,
-       Fecha      = @Fecha,
-       Notas      = @Notas
+   SET MascotaId   = @MascotaGuid,
+       ClienteId   = @ClienteGuid,
+       EmpleadoId  = @EmpleadoGuid,
+       Tipo        = @Tipo,
+       Fecha       = @Fecha,
+       Notas       = @Notas,
+       Precio      = ISNULL(@Precio, Precio) -- si viene null, conserva el actual
  WHERE Id = @Id;";
 
             using var cn = _factory.Create();
@@ -160,8 +165,9 @@ UPDATE dbo.ProcedimientoMascotas
                 ClienteGuid = (dto.ClienteId == null || dto.ClienteId == Guid.Empty) ? (Guid?)null : dto.ClienteId,
                 EmpleadoGuid = (dto.EmpleadoId == null || dto.EmpleadoId == Guid.Empty) ? (Guid?)null : dto.EmpleadoId,
                 Tipo = dto.Tipo.ToString(),
-                Fecha = dto.Fecha,     // preserva hora
-                Notas = dto.Notas
+                Fecha = dto.Fecha,
+                Notas = dto.Notas,
+                Precio = dto.Precio
             });
             return rows > 0;
         }

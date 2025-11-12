@@ -1,4 +1,9 @@
-﻿using System;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Veterinaria.Domain.Enums;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Text.Json;
@@ -54,7 +59,6 @@ namespace Veterinaria.Domain.DTOs
 
         public override void Write(Utf8JsonWriter writer, TipoProcedimientoMascota value, JsonSerializerOptions options)
         {
-            // Emitimos el nombre tal cual (PascalCase). Si prefieres camelCase, conviértelo aquí.
             writer.WriteStringValue(Enum.GetName(typeof(TipoProcedimientoMascota), value) ?? value.ToString());
         }
     }
@@ -67,14 +71,9 @@ namespace Veterinaria.Domain.DTOs
     {
         private static readonly string[] Formats = new[]
         {
-            "o",                       // 2025-11-11T23:59:59.0000000Z
-            "yyyy-MM-ddTHH:mm:ss.FFFK",
-            "yyyy-MM-ddTHH:mm:ssK",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd",
-            "dd/MM/yyyy HH:mm:ss",
-            "dd/MM/yyyy HH:mm",
-            "dd/MM/yyyy"
+            "o", "yyyy-MM-ddTHH:mm:ss.FFFK", "yyyy-MM-ddTHH:mm:ssK",
+            "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd",
+            "dd/MM/yyyy HH:mm:ss", "dd/MM/yyyy HH:mm", "dd/MM/yyyy"
         };
 
         public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -84,7 +83,6 @@ namespace Veterinaria.Domain.DTOs
                 var s = reader.GetString();
                 if (!string.IsNullOrWhiteSpace(s))
                 {
-                    // Intento exacto con formatos conocidos (invariant + cultura local por si acaso)
                     if (DateTime.TryParseExact(s, Formats, CultureInfo.InvariantCulture,
                             DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out var dt))
                         return dt.ToLocalTime();
@@ -94,18 +92,13 @@ namespace Veterinaria.Domain.DTOs
                         return dt2.ToLocalTime();
                 }
             }
-            else if (reader.TokenType == JsonTokenType.Number)
+            else if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt64(out var epochMs))
             {
-                // Epoch milliseconds opcional
-                if (reader.TryGetInt64(out var epochMs))
-                {
-                    var epoch = DateTimeOffset.FromUnixTimeMilliseconds(epochMs);
-                    return epoch.LocalDateTime;
-                }
+                var epoch = DateTimeOffset.FromUnixTimeMilliseconds(epochMs);
+                return epoch.LocalDateTime;
             }
             else if (reader.TokenType == JsonTokenType.StartObject)
             {
-                // Algunos frontends envían { "date": "...", "time": "..." }
                 using (var doc = JsonDocument.ParseValue(ref reader))
                 {
                     var root = doc.RootElement;
@@ -149,6 +142,10 @@ namespace Veterinaria.Domain.DTOs
 
         [MaxLength(1000)]
         public string? Notas { get; init; }
+
+        // NUEVO: Precio aplicado al procedimiento (CRC). Si no se envía, BD lo deja en 0.00.
+        [Range(0, double.MaxValue)]
+        public decimal? Precio { get; init; }
     }
 
     public sealed class ProcedimientoMascotaUpdateDto
@@ -167,10 +164,14 @@ namespace Veterinaria.Domain.DTOs
 
         [MaxLength(1000)]
         public string? Notas { get; init; }
+
+        // NUEVO: Precio puede actualizarse (por ejemplo, si cambió por peso).
+        [Range(0, double.MaxValue)]
+        public decimal? Precio { get; init; }
     }
 
     /// <summary>
-    /// DTO de lectura alineado a la tabla nueva (incluye columnas denormalizadas y de estado/IVA).
+    /// DTO de lectura alineado a la tabla nueva (incluye columnas denormalizadas y de estado/IVA/precio).
     /// </summary>
     public sealed class ProcedimientoMascotaReadDto
     {
@@ -188,9 +189,12 @@ namespace Veterinaria.Domain.DTOs
         [MaxLength(1000)]
         public string? Notas { get; init; }
 
-        // Nuevas columnas presentes en la tabla (para listar sin JOIN)
+        // Denormalizados / auxiliares
         public string? NombreMascota { get; init; }
         public decimal IvaPorcentaje { get; init; }
         public string Estado { get; init; } = "Agendado";
+
+        // NUEVO: Precio aplicado guardado en la fila
+        public decimal Precio { get; init; }
     }
 }

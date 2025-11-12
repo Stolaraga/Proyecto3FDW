@@ -70,9 +70,11 @@ namespace Veterinaria.Domain.Services
                 ClienteId = clienteId,
                 EmpleadoId = dto.EmpleadoId,
                 Tipo = dto.Tipo,
-                Fecha = dto.Fecha,   // preserva hora
-                Notas = dto.Notas
+                Fecha = dto.Fecha,
+                Notas = dto.Notas,
+                Precio = dto.Precio           
             };
+
 
             return await _procRepo.AddAsync(dtoCompleto);
         }
@@ -104,7 +106,8 @@ namespace Veterinaria.Domain.Services
                 EmpleadoId = dto.EmpleadoId,
                 Tipo = dto.Tipo,
                 Fecha = dto.Fecha,   // preserva hora
-                Notas = dto.Notas
+                Notas = dto.Notas,
+                Precio = dto.Precio
             };
 
             return await _procRepo.UpdateAsync(id, dtoCompleto);
