@@ -1,92 +1,103 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.Net.Mime;
 using System.Threading.Tasks;
-using Veterinaria.Api.Infrastructure.RepositoriesSql;
 using Veterinaria.Domain.DTOs;
+using Veterinaria.Domain.Services;
 
 namespace Veterinaria.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Produces(MediaTypeNames.Application.Json)]
     public sealed class ProcedimientoMascotasController : ControllerBase
     {
-        private readonly IMascotasSqlRepository _mascRepo;
-        private readonly IProcedimientosMascotasSqlRepository _procRepo;
+        private readonly IProcedimientoMascotaService _service;
 
-        public ProcedimientoMascotasController(
-            IMascotasSqlRepository mascRepo,
-            IProcedimientosMascotasSqlRepository procRepo)
-        {
-            _mascRepo = mascRepo;
-            _procRepo = procRepo;
-        }
+        public ProcedimientoMascotasController(IProcedimientoMascotaService service)
+            => _service = service ?? throw new ArgumentNullException(nameof(service));
 
+        /// <summary>
+        /// Lista procedimientos; puede filtrar por MascotaId.
+        /// </summary>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ProcedimientoMascotaReadDto>>> GetAll([FromQuery] Guid? mascotaId)
+        [ProducesResponseType(typeof(IReadOnlyList<ProcedimientoMascotaReadDto>), 200)]
+        public async Task<ActionResult<IReadOnlyList<ProcedimientoMascotaReadDto>>> GetAll([FromQuery] Guid? mascotaId = null)
         {
-            var list = await _procRepo.GetAllAsync(mascotaId);
-            return Ok(list);
+            var result = await _service.ListarAsync(mascotaId);
+            return Ok(result);
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<ProcedimientoMascotaReadDto>> Get(Guid id)
+        /// <summary>
+        /// Obtiene un procedimiento por Id.
+        /// </summary>
+        [HttpGet("{id:guid}", Name = nameof(GetById))]
+        [ProducesResponseType(typeof(ProcedimientoMascotaReadDto), 200)]
+        [ProducesResponseType(404)]
+        public async Task<ActionResult<ProcedimientoMascotaReadDto>> GetById(Guid id)
         {
-            var dto = await _procRepo.GetAsync(id);
-            return dto is null ? NotFound() : Ok(dto);
+            var item = await _service.ObtenerAsync(id);
+            if (item is null) return NotFound();
+            return Ok(item);
         }
 
+        /// <summary>
+        /// Crea un procedimiento.
+        /// </summary>
         [HttpPost]
-        public async Task<ActionResult<ProcedimientoMascotaReadDto>> Post([FromBody] ProcedimientoMascotaCreateDto dto)
+        [ProducesResponseType(typeof(ProcedimientoMascotaReadDto), 201)]
+        [ProducesResponseType(400)]
+        public async Task<ActionResult<ProcedimientoMascotaReadDto>> Create([FromBody] ProcedimientoMascotaCreateDto dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-            var mascota = await _mascRepo.GetAsync(dto.MascotaId);
-            if (mascota is null)
-                return Problem(detail: $"Mascota inexistente: {dto.MascotaId}", statusCode: 400);
-
-            if (dto.ClienteId.HasValue && dto.ClienteId.Value != mascota.ClienteId)
-                return Problem(detail: "La mascota no pertenece al cliente indicado.", statusCode: 400);
-
             try
             {
-                var creado = await _procRepo.AddAsync(dto);
-                return CreatedAtAction(nameof(Get), new { id = creado.Id }, creado);
+                var created = await _service.CrearAsync(dto);
+                return CreatedAtRoute(nameof(GetById), new { id = created.Id }, created);
             }
             catch (InvalidOperationException ex)
             {
-                return Problem(detail: ex.Message, statusCode: 400);
+                // Errores de negocio/validación (mascota inexistente, ClienteId faltante, etc.)
+                return BadRequest(new { message = ex.Message });
             }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Put(Guid id, [FromBody] ProcedimientoMascotaUpdateDto dto)
+        /// <summary>
+        /// Actualiza un procedimiento.
+        /// </summary>
+        [HttpPut("{id:guid}")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> Update(Guid id, [FromBody] ProcedimientoMascotaUpdateDto dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-            var mascota = await _mascRepo.GetAsync(dto.MascotaId);
-            if (mascota is null)
-                return Problem(detail: $"Mascota inexistente: {dto.MascotaId}", statusCode: 400);
-
-            if (dto.ClienteId.HasValue && dto.ClienteId.Value != mascota.ClienteId)
-                return Problem(detail: "La mascota no pertenece al cliente indicado.", statusCode: 400);
-
             try
             {
-                var ok = await _procRepo.UpdateAsync(id, dto);
-                return ok ? NoContent() : NotFound();
+                var ok = await _service.ActualizarAsync(id, dto);
+                if (!ok) return NotFound();
+                return NoContent();
             }
             catch (InvalidOperationException ex)
             {
-                return Problem(detail: ex.Message, statusCode: 400);
+                return BadRequest(new { message = ex.Message });
             }
         }
 
-        [HttpDelete("{id}")]
+        /// <summary>
+        /// Elimina un procedimiento.
+        /// </summary>
+        [HttpDelete("{id:guid}")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(404)]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var ok = await _procRepo.DeleteAsync(id);
-            return ok ? NoContent() : NotFound();
+            var ok = await _service.EliminarAsync(id);
+            if (!ok) return NotFound();
+            return NoContent();
         }
     }
 }
