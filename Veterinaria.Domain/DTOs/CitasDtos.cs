@@ -7,15 +7,16 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Veterinaria.Domain.DTOs
 {
-    public sealed record CitaCreateDto : BaseCreateDto
+    public sealed class CitaCreateDto
     {
-        [Required] public Guid MascotaId { get; init; }                 // GUID (app)
-        [Required] public int ServicioId { get; init; }                 // INT (tabla Servicios)
-        [Required] public Guid VeterinarioId { get; init; }              // GUID (Empleado)
-        [Required] public DateTime FechaHora { get; init; }
-        [StringLength(500)] public string? Notas { get; init; }
-        public string Estado { get; init; } = "Pendiente";               // 'Pendiente'|'Completada'|'Cancelada'
+        public Guid MascotaId { get; set; }
+        public int ServicioId { get; set; }
+        public Guid? VeterinarioId { get; set; }
+        public DateTime FechaHora { get; set; }
+        public string Estado { get; set; } = "Agendado";
+        public string? Notas { get; set; }
     }
+
 
     public sealed record CitaUpdateDto : BaseUpdateDto
     {

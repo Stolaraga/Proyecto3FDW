@@ -52,6 +52,8 @@ namespace Veterinaria.Api
             builder.Services.AddScoped<IProcedimientosMascotasSqlRepository, ProcedimientosMascotasSqlRepository>();
             builder.Services.AddScoped<IProcedimientoMascotaService, ProcedimientoMascotaService>();
             builder.Services.AddScoped<ICatalogoProcedimientosSqlRepository, CatalogoProcedimientosSqlRepository>();
+            builder.Services.AddScoped<IServiciosSqlRepository, ServiciosSqlRepository>();
+            
 
 
 
@@ -61,11 +63,14 @@ namespace Veterinaria.Api
 
 
 
-            builder.Services.AddControllers()
+
+
+
+            builder.Services
+                .AddControllers()
                 .AddJsonOptions(o =>
                 {
                     o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                    o.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
                 });
 
             builder.Services.AddEndpointsApiExplorer();

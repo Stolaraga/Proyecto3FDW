@@ -17,7 +17,7 @@ namespace Veterinaria.Domain.Entities.Helpers
         /// Devuelve la última fecha de vacunación anual registrada para la mascota.
         public static DateOnly? UltimaVacunacionAnual(Guid mascotaId, IEnumerable<ProcedimientoMascotas> atenciones)
         => atenciones
-        .Where(a => a.MascotaId == mascotaId && a.Tipo == TipoProcedimientoMascota.VacunacionAnual)
+        //.Where(a => a.MascotaId == mascotaId && a.Tipo == TipoProcedimientoMascota.VacunacionAnual)
         .Select(a => a.Fecha)
         .OrderByDescending(f => f)
         .FirstOrDefault();

@@ -127,47 +127,28 @@ namespace Veterinaria.Domain.DTOs
 
     public sealed class ProcedimientoMascotaCreateDto
     {
-        [Required] public Guid MascotaId { get; init; }
-        // ClienteId es obligatorio en BD; el Service lo completa si llega vacío.
-        public Guid? ClienteId { get; init; }
-        public Guid? EmpleadoId { get; init; }
-
-        [Required]
-        [JsonConverter(typeof(TipoProcedimientoMascotaConverter))]
-        public TipoProcedimientoMascota Tipo { get; init; }
-
-        [Required]
-        [JsonConverter(typeof(FlexibleDateTimeConverter))]
-        public DateTime Fecha { get; init; }
-
-        [MaxLength(1000)]
-        public string? Notas { get; init; }
-
-        // NUEVO: Precio aplicado al procedimiento (CRC). Si no se envía, BD lo deja en 0.00.
-        [Range(0, double.MaxValue)]
-        public decimal? Precio { get; init; }
+        public Guid MascotaId { get; set; }
+        public Guid? ClienteId { get; set; }
+        public Guid? EmpleadoId { get; set; }
+        public TipoProcedimientoMascota Tipo { get; set; }  // se deserializa gracias al JsonStringEnumConverter
+        public DateTime Fecha { get; set; }
+        public string? Notas { get; set; }
+        public decimal? Precio { get; set; }                // null => usar catálogo
+        public decimal IvaPorcentaje { get; set; } = 13m;   // default
+        public string Estado { get; set; } = "Agendado";
     }
 
     public sealed class ProcedimientoMascotaUpdateDto
     {
-        [Required] public Guid MascotaId { get; init; }
-        public Guid? ClienteId { get; init; }
-        public Guid? EmpleadoId { get; init; }
-
-        [Required]
-        [JsonConverter(typeof(TipoProcedimientoMascotaConverter))]
-        public TipoProcedimientoMascota Tipo { get; init; }
-
-        [Required]
-        [JsonConverter(typeof(FlexibleDateTimeConverter))]
-        public DateTime Fecha { get; init; }
-
-        [MaxLength(1000)]
-        public string? Notas { get; init; }
-
-        // NUEVO: Precio puede actualizarse (por ejemplo, si cambió por peso).
-        [Range(0, double.MaxValue)]
-        public decimal? Precio { get; init; }
+        public Guid MascotaId { get; set; }
+        public Guid? ClienteId { get; set; }
+        public Guid? EmpleadoId { get; set; }
+        public TipoProcedimientoMascota Tipo { get; set; }
+        public DateTime Fecha { get; set; }
+        public string? Notas { get; set; }
+        public decimal? Precio { get; set; }                // null => conserva
+        public decimal? IvaPorcentaje { get; set; }         // null => conserva
+        public string? Estado { get; set; }                 // null => conserva
     }
 
     /// <summary>

@@ -5,7 +5,6 @@ using System.Net.Mime;
 using System.Threading.Tasks;
 using Veterinaria.Api.Infrastructure.RepositoriesSql;
 using Veterinaria.Domain.DTOs;
-using Veterinaria.Domain.Services;
 
 namespace Veterinaria.Api.Controllers
 {
@@ -14,122 +13,143 @@ namespace Veterinaria.Api.Controllers
     [Produces(MediaTypeNames.Application.Json)]
     public sealed class ProcedimientoMascotasController : ControllerBase
     {
-        private readonly IProcedimientoMascotaService _service;
-        private readonly ICatalogoProcedimientosSqlRepository _catalogoRepo;
+        private readonly ICitasSqlRepository _citasRepo;
+        private readonly IServiciosSqlRepository _serviciosRepo;
 
         public ProcedimientoMascotasController(
-            IProcedimientoMascotaService service,
-            ICatalogoProcedimientosSqlRepository catalogoRepo)
+            ICitasSqlRepository citasRepo,
+            IServiciosSqlRepository serviciosRepo)
         {
-            _service = service ?? throw new ArgumentNullException(nameof(service));
-            _catalogoRepo = catalogoRepo ?? throw new ArgumentNullException(nameof(catalogoRepo));
+            _citasRepo = citasRepo ?? throw new ArgumentNullException(nameof(citasRepo));
+            _serviciosRepo = serviciosRepo ?? throw new ArgumentNullException(nameof(serviciosRepo));
         }
 
-        /// <summary>
-        /// Lista procedimientos; puede filtrar por MascotaId.
-        /// </summary>
+        // GET neutro (sin capa vieja)
         [HttpGet]
-        [ProducesResponseType(typeof(IReadOnlyList<ProcedimientoMascotaReadDto>), 200)]
-        public async Task<ActionResult<IReadOnlyList<ProcedimientoMascotaReadDto>>> GetAll([FromQuery] Guid? mascotaId = null)
-        {
-            var result = await _service.ListarAsync(mascotaId);
-            return Ok(result);
-        }
+        [ProducesResponseType(typeof(IReadOnlyList<object>), 200)]
+        public ActionResult<IReadOnlyList<object>> GetAll([FromQuery] Guid? mascotaId = null)
+            => Ok(Array.Empty<object>());
 
-        /// <summary>
-        /// Obtiene un procedimiento por Id.
-        /// </summary>
+        // GET/{id} neutro (sin capa vieja)
         [HttpGet("{id:guid}", Name = nameof(GetById))]
-        [ProducesResponseType(typeof(ProcedimientoMascotaReadDto), 200)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult<ProcedimientoMascotaReadDto>> GetById(Guid id)
-        {
-            var item = await _service.ObtenerAsync(id);
-            if (item is null) return NotFound();
-            return Ok(item);
-        }
+        public ActionResult GetById(Guid id) => NotFound();
 
         /// <summary>
-        /// Crea un procedimiento.
-        /// - Si se envía ?codigo=CONSULTA y el body NO trae 'precio', toma el precio del catálogo.
-        /// - Si el body trae 'precio', se respeta el valor del body.
+        /// Crea un procedimiento (solo lógica nueva): garantiza/crea Servicio y registra Cita.
         /// </summary>
         [HttpPost]
-        [ProducesResponseType(typeof(ProcedimientoMascotaReadDto), 201)]
+        [ProducesResponseType(201)]
         [ProducesResponseType(400)]
-        public async Task<ActionResult<ProcedimientoMascotaReadDto>> Create(
+        public async Task<ActionResult> Create(
             [FromBody] ProcedimientoMascotaCreateDto dto,
-            [FromQuery] string? codigo = null)
+            [FromQuery] int? servicioId = null,
+            [FromQuery] string? codigo = null,
+            [FromQuery] decimal? peso = null)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-            try
-            {
-                var payload = dto;
+            // 1) Resolver/crear Servicio
+            ServicioRow? servicio = null;
 
-                // Si el front NO mandó precio pero sí mandó código, usamos el precio del catálogo
-                if (payload.Precio is null && !string.IsNullOrWhiteSpace(codigo))
+            if (servicioId is not null)
+            {
+                servicio = await _serviciosRepo.GetByIdAsync(servicioId.Value);
+                if (servicio is null)
+                    return BadRequest(new { message = $"ServicioId inexistente: {servicioId}" });
+            }
+            else
+            {
+                // Nombre objetivo desde 'codigo' (mapeo) o desde enum del DTO
+                var nombreTarget = !string.IsNullOrWhiteSpace(codigo)
+                    ? MapCodigoToServicioNombre(codigo!)
+                    : MapTipoEnumToServicioNombre(dto.Tipo);
+
+                servicio = await _serviciosRepo.GetByNombreAsync(nombreTarget);
+
+                if (servicio is null)
                 {
-                    var cat = await _catalogoRepo.GetByCodigoAsync(codigo);
-                    if (cat is null)
-                        return BadRequest(new { message = $"Código de catálogo inexistente: '{codigo}'." });
-
-                    payload = new ProcedimientoMascotaCreateDto
-                    {
-                        MascotaId = dto.MascotaId,
-                        ClienteId = dto.ClienteId,
-                        EmpleadoId = dto.EmpleadoId,
-                        Tipo = dto.Tipo,
-                        Fecha = dto.Fecha,
-                        Notas = dto.Notas,
-                        Precio = cat.Precio
-                    };
+                    // Ya no existe catálogo viejo: si no hay servicio, lo creamos con precio base
+                    // tomando dto.Precio (si no vino, 0).
+                    var precioBase = dto.Precio ?? 0m;
+                    servicio = await _serviciosRepo.AddAsync(nombreTarget, precioBase, true);
                 }
-
-                var created = await _service.CrearAsync(payload);
-                return CreatedAtRoute(nameof(GetById), new { id = created.Id }, created);
             }
-            catch (InvalidOperationException ex)
+
+            // 2) Calcular precio final
+            decimal? precioFinal = dto.Precio;
+            if (precioFinal is null)
             {
-                // Errores de negocio/validación (mascota inexistente, ClienteId faltante, etc.)
-                return BadRequest(new { message = ex.Message });
+                var baseP = servicio!.PrecioBase;
+                if (EsCirugiaPorKg(servicio.Nombre) && peso is not null && peso > 0)
+                    precioFinal = baseP * peso.Value;
+                else
+                    precioFinal = baseP;
+            }
+
+            // Defaults defensivos para compatibilidad
+            if (dto.IvaPorcentaje <= 0) dto.IvaPorcentaje = 13m;
+            dto.Estado ??= "Agendado";
+            if (dto.Fecha == default) dto.Fecha = DateTime.UtcNow;
+
+            // 3) Registrar la CITA en dbo.Citas
+            var cita = await _citasRepo.AddAsync(new CitaCreateDto
+            {
+                MascotaId = dto.MascotaId,
+                ServicioId = servicio!.ServicioId,
+                VeterinarioId = dto.EmpleadoId,
+                FechaHora = dto.Fecha,
+                Estado = dto.Estado,
+                Notas = dto.Notas
+            });
+
+            // 4) Responder 201 sin tocar la tabla antigua
+            return Created($"/api/ProcedimientoMascotas", new
+            {
+                ok = true,
+                citaId = cita.Id,
+                servicioId = servicio.ServicioId,
+                servicio = servicio.Nombre,
+                total = precioFinal,
+                estado = dto.Estado,
+                fecha = dto.Fecha
+            });
+        }
+
+        private static bool EsCirugiaPorKg(string nombre)
+        {
+            var n = nombre.ToLowerInvariant();
+            return n.Contains("cirugía menor") || n.Contains("cirugia menor")
+                || n.Contains("cirugía mayor") || n.Contains("cirugia mayor");
+        }
+
+        // Mapea códigos (de tu UI) → nombres en tabla Servicios
+        private static string MapCodigoToServicioNombre(string codigo)
+        {
+            switch (codigo.Trim().ToUpperInvariant())
+            {
+                case "CONSULTA":
+                case "CONSULTA_HORARIO_ESPECIAL": return "Consulta general";
+                case "VACUNAS_ANUALES": return "Vacunación";
+                case "DESPARASITACION": return "Desparasitación";
+                case "CIRUGIA_MENOR": return "Cirugía menor";
+                case "CIRUGIA_MAYOR": return "Cirugía mayor";
+                default: return codigo;
             }
         }
 
-        /// <summary>
-        /// Actualiza un procedimiento.
-        /// </summary>
-        [HttpPut("{id:guid}")]
-        [ProducesResponseType(204)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> Update(Guid id, [FromBody] ProcedimientoMascotaUpdateDto dto)
+        // Mapea enum del dominio → nombres en tabla Servicios
+        private static string MapTipoEnumToServicioNombre(Veterinaria.Domain.Enums.TipoProcedimientoMascota tipo)
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
-            try
+            return tipo switch
             {
-                var ok = await _service.ActualizarAsync(id, dto);
-                if (!ok) return NotFound();
-                return NoContent();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Elimina un procedimiento.
-        /// </summary>
-        [HttpDelete("{id:guid}")]
-        [ProducesResponseType(204)]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> Delete(Guid id)
-        {
-            var ok = await _service.EliminarAsync(id);
-            if (!ok) return NotFound();
-            return NoContent();
+                Veterinaria.Domain.Enums.TipoProcedimientoMascota.Consulta => "Consulta general",
+                Veterinaria.Domain.Enums.TipoProcedimientoMascota.VacunasAnuales => "Vacunación",
+                Veterinaria.Domain.Enums.TipoProcedimientoMascota.Desparasitacion => "Desparasitación",
+                Veterinaria.Domain.Enums.TipoProcedimientoMascota.CirugiaMenor => "Cirugía menor",
+                Veterinaria.Domain.Enums.TipoProcedimientoMascota.CirugiaMayor => "Cirugía mayor",
+                _ => "Consulta general"
+            };
         }
     }
 }

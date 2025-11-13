@@ -12,6 +12,8 @@ namespace Veterinaria.Api.Infrastructure.RepositoriesSql
         Task<ProcedimientoMascotaReadDto?> GetAsync(Guid id);
         Task<IReadOnlyList<ProcedimientoMascotaReadDto>> GetAllAsync(Guid? mascotaId = null);
         Task<ProcedimientoMascotaReadDto> AddAsync(ProcedimientoMascotaCreateDto dto);
+        Task<ServicioRow> AddAsync(string nombre, decimal precioBase, bool activo = true);
+
         Task<bool> UpdateAsync(Guid id, ProcedimientoMascotaUpdateDto dto);
         Task<bool> DeleteAsync(Guid id);
     }
@@ -112,15 +114,16 @@ ORDER BY p.Fecha DESC, p.ProcId DESC;";
             if (dto.ClienteId is null || dto.ClienteId == Guid.Empty)
                 throw new InvalidOperationException("ClienteId es obligatorio para insertar el procedimiento.");
 
-            // Si no envían precio, la BD tiene DEFAULT 0.00; aquí lo fijamos explícitamente.
-            var precio = dto.Precio ?? 0m;
+            var precio = dto.Precio ?? 0m; // si no envían precio, quedará 0 y la capa superior puede haberlo calculado
+            var iva = (dto.IvaPorcentaje <= 0) ? 13m : dto.IvaPorcentaje;
+            var estado = string.IsNullOrWhiteSpace(dto.Estado) ? "Agendado" : dto.Estado;
 
             const string insertSql = @"
 INSERT INTO dbo.ProcedimientoMascotas
-    (MascotaId, ClienteId, EmpleadoId, Tipo, Fecha, Notas, NombreMascota, Precio)
+    (MascotaId, ClienteId, EmpleadoId, Tipo, Fecha, Notas, NombreMascota, IvaPorcentaje, Estado, Precio)
 OUTPUT inserted.Id
 VALUES
-    (@MascotaGuid, @ClienteGuid, @EmpleadoGuid, @Tipo, @Fecha, @Notas, @NombreMascota, @Precio);";
+    (@MascotaGuid, @ClienteGuid, @EmpleadoGuid, @Tipo, @Fecha, @Notas, @NombreMascota, @IvaPorcentaje, @Estado, @Precio);";
 
             using var cn = _factory.Create();
             var newId = await cn.ExecuteScalarAsync<Guid>(insertSql, new
@@ -132,6 +135,8 @@ VALUES
                 Fecha = dto.Fecha,
                 Notas = dto.Notas,
                 NombreMascota = (string?)null,
+                IvaPorcentaje = iva,
+                Estado = estado,
                 Precio = precio
             });
 
@@ -148,13 +153,15 @@ VALUES
 
             const string sql = @"
 UPDATE dbo.ProcedimientoMascotas
-   SET MascotaId   = @MascotaGuid,
-       ClienteId   = @ClienteGuid,
-       EmpleadoId  = @EmpleadoGuid,
-       Tipo        = @Tipo,
-       Fecha       = @Fecha,
-       Notas       = @Notas,
-       Precio      = ISNULL(@Precio, Precio) -- si viene null, conserva el actual
+   SET MascotaId     = @MascotaGuid,
+       ClienteId     = @ClienteGuid,
+       EmpleadoId    = @EmpleadoGuid,
+       Tipo          = @Tipo,
+       Fecha         = @Fecha,
+       Notas         = @Notas,
+       IvaPorcentaje = ISNULL(@IvaPorcentaje, IvaPorcentaje),
+       Estado        = ISNULL(@Estado, Estado),
+       Precio        = ISNULL(@Precio, Precio)
  WHERE Id = @Id;";
 
             using var cn = _factory.Create();
@@ -167,7 +174,9 @@ UPDATE dbo.ProcedimientoMascotas
                 Tipo = dto.Tipo.ToString(),
                 Fecha = dto.Fecha,
                 Notas = dto.Notas,
-                Precio = dto.Precio
+                IvaPorcentaje = dto.IvaPorcentaje, // null => conserva
+                Estado = dto.Estado,        // null => conserva
+                Precio = dto.Precio         // null => conserva
             });
             return rows > 0;
         }
@@ -179,5 +188,25 @@ UPDATE dbo.ProcedimientoMascotas
             var rows = await cn.ExecuteAsync(sql, new { Id = id });
             return rows > 0;
         }
+
+
+
+        public async Task<ServicioRow> AddAsync(string nombre, decimal precioBase, bool activo = true)
+        {
+            const string sql = @"
+INSERT INTO dbo.Servicios (Nombre, PrecioBase, Activo)
+OUTPUT inserted.ServicioId, inserted.Nombre, inserted.PrecioBase, inserted.Activo
+VALUES (@Nombre, @PrecioBase, @Activo);";
+
+            using var cn = _factory.Create();
+            return await cn.QuerySingleAsync<ServicioRow>(sql, new
+            {
+                Nombre = nombre,
+                PrecioBase = precioBase,
+                Activo = activo
+            });
+        }
+
+
     }
 }
